@@ -1,15 +1,33 @@
 # Panda 🐼
 
 SQL-only Gomoku (五目並べ) on SQLite.
-
 黒と白の石をSQLのINSERTひとつで打つ、パラパラ漫画スタイルの五目並べ。
 
 ## Quick start
 
-```bash
-sqlite3 panda.db ".read schema.sql"
+```powershell
+# Setup (installs sqlite3 if needed, creates db, loads functions)
+.\setup.ps1
+
+# Play interactively
 sqlite3 panda.db
+
+# Or run demo animation
+Start-Demo
 ```
+
+## Tile animation (パラパラ漫画)
+
+`Start-Demo` replays moves at configurable FPS. Each frame = 1 SQL INSERT.
+
+```powershell
+.\setup.ps1 -Fps 24
+Start-Demo
+```
+
+Default 15fps (~67ms/frame), supports 24fps for smoother playback.
+
+## Raw SQL
 
 ```sql
 -- 盤面表示
@@ -26,13 +44,16 @@ SELECT * FROM gomoku_win;
 
 ## Commands
 
-| SQL | 内容 |
+| SQL / Function | 内容 |
 |-----|------|
 | `INSERT INTO gomoku_place(x,y) VALUES(n,n)` | 着手（自動ターン切替） |
 | `SELECT * FROM gomoku_display;` | 盤面表示 |
 | `SELECT * FROM gomoku_state;` | 状況確認 |
 | `SELECT * FROM gomoku_win;` | 勝敗判定 |
-| `UPDATE gomoku_board SET stone='.', move_no=NULL; DELETE FROM gomoku_moves;` | リセット |
+| `Place-Stone x y` | 着手 (PowerShell) |
+| `Show-Board` | 表示 (PowerShell) |
+| `Start-Demo` | アニメーションデモ (PowerShell) |
+| `Reset-Game` | リセット (PowerShell) |
 
 ## How it works
 
