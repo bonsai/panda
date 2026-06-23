@@ -1,0 +1,78 @@
+name: test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install sqlite3
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq sqlite3
+      - name: Check version
+        run: sqlite3 --version
+
+      # ── Gomoku 15×15 ──
+      - name: Gomoku — schema loads
+        run: sqlite3 /tmp/test.db ".read schema/00-board.sql" ".read schema/10-gomoku.sql" "SELECT COUNT(*) AS cells FROM gomoku_board;" | grep 225
+      - name: Gomoku — black wins vertical (5 in a row)
+        run: |
+          sqlite3 /tmp/test.db "
+          INSERT INTO gomoku_place(x,y) VALUES(7,7);
+          INSERT INTO gomoku_place(x,y) VALUES(8,8);
+          INSERT INTO gomoku_place(x,y) VALUES(7,8);
+          INSERT INTO gomoku_place(x,y) VALUES(8,9);
+          INSERT INTO gomoku_place(x,y) VALUES(7,9);
+          INSERT INTO gomoku_place(x,y) VALUES(8,10);
+          INSERT INTO gomoku_place(x,y) VALUES(7,10);
+          INSERT INTO gomoku_place(x,y) VALUES(8,11);
+          INSERT INTO gomoku_place(x,y) VALUES(7,11);
+          SELECT 'STATUS=' || status FROM gomoku_state;
+          SELECT 'WINNER=' || stone FROM gomoku_win;
+          " | tee /dev/stderr | grep -q "STATUS=B_WIN" && grep -q "WINNER=B" <(echo "$(sqlite3 /tmp/test.db "SELECT stone FROM gomoku_win;")")
+      - name: Gomoku — occupied cell rejected
+        run: |
+          sqlite3 /tmp/test.db "INSERT INTO gomoku_place(x,y) VALUES(7,7);" 2>&1 | grep -q "ABORT"
+      - name: Gomoku — display has 15 rows
+        run: |
+          test "$(sqlite3 /tmp/test.db "SELECT COUNT(*) FROM gomoku_display;")" = "15"
+
+      # ── Tic-tac-toe 3×3 ──
+      - name: TicTacToe — schema switch + board 3×3
+        run: |
+          sqlite3 /tmp/test2.db ".read schema/00-board.sql" ".read schema/20-tictactoe.sql" "SELECT COUNT(*) AS cells FROM gomoku_board;" | grep 9
+      - name: TicTacToe — diagonal win
+        run: |
+          sqlite3 /tmp/test2.db "
+          INSERT INTO gomoku_place(x,y) VALUES(1,1);
+          INSERT INTO gomoku_place(x,y) VALUES(1,2);
+          INSERT INTO gomoku_place(x,y) VALUES(2,2);
+          INSERT INTO gomoku_place(x,y) VALUES(1,3);
+          INSERT INTO gomoku_place(x,y) VALUES(3,3);
+          " && sqlite3 /tmp/test2.db "SELECT stone||' WIN' FROM gomoku_win;" | grep "B WIN"
+      - name: TicTacToe — draw detection
+        run: |
+          sqlite3 /tmp/test3.db ".read schema/00-board.sql" ".read schema/20-tictactoe.sql" "
+          INSERT INTO gomoku_place(x,y) VALUES(1,1);
+          INSERT INTO gomoku_place(x,y) VALUES(2,1);
+          INSERT INTO gomoku_place(x,y) VALUES(3,1);
+          INSERT INTO gomoku_place(x,y) VALUES(1,2);
+          INSERT INTO gomoku_place(x,y) VALUES(2,2);
+          INSERT INTO gomoku_place(x,y) VALUES(3,2);
+          INSERT INTO gomoku_place(x,y) VALUES(2,3);
+          INSERT INTO gomoku_place(x,y) VALUES(1,3);
+          INSERT INTO gomoku_place(x,y) VALUES(3,3);
+          SELECT status FROM gomoku_state;
+          " | grep DRAW
+
+      # ── Othello 8×8 ──
+      - name: Othello — initial board 4 center stones
+        run: |
+          sqlite3 /tmp/test4.db ".read schema/00-board.sql" ".read schema/30-othello.sql" "SELECT COUNT(*) FROM gomoku_board WHERE stone!='.';" | grep 4
+      - name: Othello — flip on (4,6)
+        run: |
+          sqlite3 /tmp/test4.db "INSERT INTO gomoku_place(x,y) VALUES(4,6);" \
+            "SELECT stone FROM gomoku_board WHERE x=4 AND y=5;" | grep -q "#" && echo "flip OK"
+      - name: Othello — stone counts after 1 move
+        run: |
+          sqlite3 /tmp/test4.db "SELECT 'B='||black, 'W='||white FROM gomoku_state;" | grep "B=4" | grep "W=1"
