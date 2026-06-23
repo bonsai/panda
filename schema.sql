@@ -51,7 +51,7 @@ END;
 CREATE VIEW IF NOT EXISTS gomoku_display AS
 SELECT printf('%2d', y) || ' ' ||
     group_concat(CASE stone
-        WHEN 'B' THEN '●' WHEN 'W' THEN '○' ELSE ' .'
+        WHEN 'B' THEN '●' WHEN 'W' THEN '○' ELSE '・'
     END, ' ') AS board_line
 FROM gomoku_board GROUP BY y ORDER BY y;
 
