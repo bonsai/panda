@@ -47,12 +47,12 @@ BEGIN
     WHERE x=NEW.x AND y=NEW.y;
 END;
 
--- 盤面表示
+-- 盤面表示（全角統一、セル間スペースなしで幅ズレ防止）
 CREATE VIEW IF NOT EXISTS gomoku_display AS
 SELECT printf('%2d', y) || ' ' ||
     group_concat(CASE stone
         WHEN 'B' THEN '●' WHEN 'W' THEN '○' ELSE '・'
-    END, ' ') AS board_line
+    END, '') AS board_line
 FROM gomoku_board GROUP BY y ORDER BY y;
 
 -- 勝敗判定（最終手から4方向を再帰CTEで走査）
